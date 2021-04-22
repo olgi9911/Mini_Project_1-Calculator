@@ -109,7 +109,7 @@ void statement(void) {
         //retp = expr(); //parsing starts here
         retp = assign_expr();
         if (match(END)) {
-            printPrefix(retp); printf("\n");
+            //printPrefix(retp); printf("\n");
             evaluateTree(retp);
             assembly(retp); //func. to print ASSEMBLY code
             freeTree(retp);
@@ -253,7 +253,6 @@ BTNode *unary_expr(void) {
         left = makeNode(INT, "0");
         left -> val = 0;
         node -> left = left;
-        //return left;
         return node;
     } else {
         return factor();
@@ -274,8 +273,6 @@ BTNode *factor(void) {
         advance();
     } else if (match(INCDEC)) {
         retp = makeNode(INCDEC, getLexeme());
-        //retp -> right = makeNode(INT, "0");
-        //retp -> right -> val = 0;
         advance();
         if(match(ID)) {
             retp -> left = makeNode(ID, getLexeme());

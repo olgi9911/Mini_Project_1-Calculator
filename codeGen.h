@@ -9,7 +9,7 @@ extern int evaluateTree(BTNode *root);
 
 // Print the syntax tree in prefix
 extern void printPrefix(BTNode *root);
-
+// Print the ASSEMBLY code
 extern void assembly(BTNode *root);
 
 #endif // __CODEGEN__

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#define TBLSIZE 1024
+#define TBLSIZE 256
 #define MAXLEN 256
 // Set PRINTERR to 1 to print error message while calling error()
 // Make sure you set PRINTERR to 0 before you submit your code
@@ -72,10 +72,6 @@ typedef enum {
     AND, OR, XOR
 } TokenSet;
 
-static TokenSet getToken(void);
-static TokenSet curToken = UNKNOWN;
-static char lexeme[MAXLEN]; //256
-
 // Structure of a tree node
 typedef struct _Node {
     TokenSet data;
@@ -106,14 +102,10 @@ BTNode *expr_tail(BTNode *left);
 
 int evaluateTree(BTNode *root);
 void assembly(BTNode *root);
-/*
-void printPrefix(BTNode *root) {
-    if (root != NULL) {
-        printf("%s ", root->lexeme);
-        printPrefix(root->left);
-        printPrefix(root->right);
-    }
-}*/
+
+static TokenSet getToken(void);
+static TokenSet curToken = UNKNOWN;
+static char lexeme[MAXLEN]; //256
 
 TokenSet getToken(void)
 {
@@ -221,6 +213,7 @@ char *getLexeme(void) {
     return lexeme;
 }
 
+int reg[8] = {};
 int sbcount = 0;
 Symbol table[TBLSIZE];
 Symbol curr_table[TBLSIZE]; // store variables in the table before the "assign" operation
@@ -295,8 +288,6 @@ BTNode *makeNode(TokenSet tok, const char *lexe) {
     strcpy(node->lexeme, lexe);
     node->data = tok;
     node->val = 0;
-    //node->left = NULL;
-    //node->right = NULL;
     return node;
 }
 
@@ -307,10 +298,6 @@ void freeTree(BTNode *root) {
         free(root);
     }
 }
-
-
-
-int reg[8] = {};
 
 int find_id_in_memory(char lex[256]) { //to find the memory location of a "ID"
     for(int i = 0; i < TBLSIZE; i++) {
@@ -323,7 +310,7 @@ int find_id_in_memory(char lex[256]) { //to find the memory location of a "ID"
 int find_empty_reg() {
     for(int i = 0; i <= 7; i++)
         if(reg[i] == 0) return i;
-    
+
     return 0;
 }
 
@@ -360,10 +347,10 @@ void statement(void) {
     } else if (match(END)) { //input is empty
         advance();
     } else {
-        //retp = expr(); //parsing starts here
-        retp = assign_expr();
+        retp = assign_expr(); //parsing starts here
         if (match(END)) {
             //printPrefix(retp); printf("\n");
+            evaluateTree(retp);
             assembly(retp); //func. to print ASSEMBLY code
             freeTree(retp);
             advance();
@@ -527,8 +514,6 @@ BTNode *factor(void) {
         advance();
     } else if (match(INCDEC)) {
         retp = makeNode(INCDEC, getLexeme());
-        //retp -> right = makeNode(INT, "1");
-        //retp -> right -> val = 1;
         advance();
         if(match(ID)) {
             retp -> left = makeNode(ID, getLexeme());
@@ -617,7 +602,7 @@ int evaluateTree(BTNode *root) {
 }
 
 void assembly(BTNode *root) {
-    int used_reg, next_used_reg, idx = 0;
+    int used_reg = 0, next_used_reg = 0, empty_reg = 0;
     if(root != NULL) {
         if(root -> data == ASSIGN) {
             assembly(root -> right); //right recursion
@@ -627,14 +612,14 @@ void assembly(BTNode *root) {
         }
         switch (root -> data) {
             case ID:
-                idx = find_empty_reg();
-                reg[idx] = 1;
-                printf("MOV r%d, [%d]\n", idx, find_id_in_memory(root -> lexeme));
+                empty_reg = find_empty_reg();
+                reg[empty_reg] = 1;
+                printf("MOV r%d, [%d]\n", empty_reg, find_id_in_memory(root -> lexeme));
                 break;
             case INT:
-                idx = find_empty_reg();
-                reg[idx] = 1;
-                printf("MOV r%d, %d\n", idx, root -> val);
+                empty_reg = find_empty_reg();
+                reg[empty_reg] = 1;
+                printf("MOV r%d, %d\n", empty_reg, root -> val);
                 break;
             case ADDSUB:
                 used_reg = find_used_reg(); //ID or INT at right
@@ -655,17 +640,14 @@ void assembly(BTNode *root) {
                 printf("MOV [%d], r%d\n", find_id_in_memory(root -> left -> lexeme), used_reg);
                 break;
             case INCDEC: {
-                idx = find_used_reg();
-                reg[idx] = 1;
-                //printf("MOV r%d, [%d]\n", idx, find_id_in_memory(root -> left -> lexeme));
-                int empty = find_empty_reg();
-                reg[empty] = 1;
-                printf("MOV r%d, 1\n", empty);
-                printf("%s r%d, r%d\n", strcmp(root ->lexeme, "++") == 0 ? "ADD" : "SUB", idx, empty);
-                reg[empty] = 0;
-                printf("MOV [%d], r%d\n", find_id_in_memory(root -> left -> lexeme), idx);
-                //printf("MOV r%d, [%d]\n", idx, find_id_in_memory(root -> left -> lexeme));
-                //reg[idx] = 0;
+                used_reg = find_used_reg(); //find reg of the variable
+                reg[empty_reg] = 1;
+                empty_reg = find_empty_reg();
+                reg[empty_reg] = 1;
+                printf("MOV r%d, 1\n", empty_reg);
+                printf("%s r%d, r%d\n", strcmp(root ->lexeme, "++") == 0 ? "ADD" : "SUB", used_reg, empty_reg);
+                reg[empty_reg] = 0;
+                printf("MOV [%d], r%d\n", find_id_in_memory(root -> left -> lexeme), used_reg);
                 break;
             }
             case AND:

@@ -2,7 +2,7 @@
 #define __PARSER__
 
 #include "lex.h"
-#define TBLSIZE 1024
+#define TBLSIZE 256
 
 // Set PRINTERR to 1 to print error message while calling error()
 // Make sure you set PRINTERR to 0 before you submit your code

@@ -39,17 +39,29 @@ TokenSet getToken(void)
         lexeme[j] = '\0';
         return ID;
     } else if (c == '+' || c == '-') {
-        lexeme[0] = c; //create INCDEC type of '+'
-        c = fgetc(stdin);
-        if(c == '+' || c == '-') {
-            lexeme[1] = c;
-            lexeme[2] = '\0';
-            //ungetc(c, stdin);
-            return INCDEC;
-        } else {
-            ungetc(c, stdin);
-            lexeme[1] = '\0';
-            return ADDSUB;
+        lexeme[0] = c;
+        if(c == '+') {
+            c = fgetc(stdin);
+            if(c == '+') {
+                lexeme[1] = c;
+                lexeme[2] = '\0';
+                return INCDEC;
+            }else {
+                ungetc(c, stdin);
+                lexeme[1] = '\0';
+                return ADDSUB;
+            }
+        }else if(c == '-') {
+            c = fgetc(stdin);
+            if(c == '-') {
+                lexeme[1] = c;
+                lexeme[2] = '\0';
+                return INCDEC;
+            }else {
+                ungetc(c, stdin);
+                lexeme[1] = '\0';
+                return ADDSUB;
+            }
         }
     } else if (c == '*' || c == '/') {
         lexeme[0] = c;
@@ -84,6 +96,7 @@ TokenSet getToken(void)
     } else {
         return UNKNOWN;
     }
+    return UNKNOWN;
 }
 
 void advance(void) {
