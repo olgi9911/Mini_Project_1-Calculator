@@ -587,11 +587,11 @@ int evaluateTree(BTNode *root) {
                 break;
             case INCDEC: {
                 lv = evaluateTree(root -> left);
-                rv = evaluateTree(root -> right);
+                //rv = evaluateTree(root -> right);
                 if(strcmp(root -> lexeme, "++") == 0) {
-                    retval = setval(root -> left -> lexeme, rv + 1);
+                    retval = setval(root -> left -> lexeme, lv + 1);
                 } else if(strcmp(root -> lexeme, "--") == 0) {
-                    retval = setval(root -> left -> lexeme, rv - 1);
+                    retval = setval(root -> left -> lexeme, lv - 1);
                 }
                 break;
             }
