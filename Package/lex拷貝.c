@@ -40,7 +40,7 @@ TokenSet getToken(void)
         return ID;
     } else if (c == '+' || c == '-') {
         lexeme[0] = c;
-        if(c == '+') {
+        if(c == '+') { //prevent reading lexeme such as "+-"
             c = fgetc(stdin);
             if(c == '+') {
                 lexeme[1] = c;

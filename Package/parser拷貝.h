@@ -3,7 +3,6 @@
 
 #include "lex.h"
 #define TBLSIZE 256
-
 // Set PRINTERR to 1 to print error message while calling error()
 // Make sure you set PRINTERR to 0 before you submit your code
 #define PRINTERR 1
@@ -53,7 +52,7 @@ extern BTNode *makeNode(TokenSet tok, const char *lexe);
 
 // Free the syntax tree
 extern void freeTree(BTNode *root);
-
+// Some functions declaration
 extern void statement(void);
 extern BTNode *assign_expr(void);
 extern BTNode *or_expr(void);

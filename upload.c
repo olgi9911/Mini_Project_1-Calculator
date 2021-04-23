@@ -215,6 +215,7 @@ char *getLexeme(void) {
 
 int reg[8] = {};
 int sbcount = 0;
+int first_or_expr = 1;
 Symbol table[TBLSIZE];
 Symbol curr_table[TBLSIZE]; // store variables in the table before the "assign" operation
 
@@ -263,7 +264,7 @@ int setval(char *str, int val) {
     return val;
 }
 
-int find_new_var_right(BTNode *root) {
+int find_new_var(BTNode *root) {
     if(root != NULL) {
         if(root -> data == ID) {
             int found = 0;
@@ -277,8 +278,8 @@ int find_new_var_right(BTNode *root) {
                 return 1;
             }
         }
-        if(find_new_var_right(root -> left)) return 1;
-        if(find_new_var_right(root -> right)) return 1;
+        if(find_new_var(root -> left)) return 1;
+        if(find_new_var(root -> right)) return 1;
     }
     return 0;
 }
@@ -337,6 +338,7 @@ void statement(void) {
     for(int i = 0; i <= 7; i++) {
         reg[i] = 0;
     }
+    first_or_expr = 1;
     BTNode *retp = NULL;
     if (match(ENDFILE)) { //store x, y, z into r0, r1, r2 respectively after EOF
         for(int i = 0; i <= 2; i++){
@@ -363,6 +365,9 @@ void statement(void) {
 // assign_expr := ID ASSIGN assign_expr | or_expr
 BTNode *assign_expr(void) {
     BTNode *retp = NULL, *node = NULL;
+    for(int i = 0; i < TBLSIZE; i++) {
+        strcpy(curr_table[i].name, table[i].name);
+    }
     node = or_expr();
     if(node -> data == ID) {
         if (match(ASSIGN)) {
@@ -371,17 +376,25 @@ BTNode *assign_expr(void) {
                     strcpy(curr_table[i].name, table[i].name);
                 }
                 advance();
+                first_or_expr = 0; //not the first returning or_expr, set to 0
                 retp -> right = assign_expr(); //recursion process
                 retp -> left = node;
-                //
-                if(find_new_var_right(retp -> right)) {
+                //Find new variable(s) in the right subtree
+                if(find_new_var(retp -> right)) {
                     error(UNDEFINED);
                 }
-                //
         } else {
+            //Deal with input such as "1 + a", a is undefined
+            if(first_or_expr && find_new_var(node)) {
+                error(UNDEFINED);
+            }
             retp = node;
         }
     } else {
+        //Deal with input such as "1 + a", a is undefined
+        if(first_or_expr && find_new_var(node)) {
+            error(UNDEFINED);
+        }
         retp = node;
     }
     return retp;
@@ -488,12 +501,16 @@ BTNode *unary_expr(void) {
     BTNode *node = NULL, *left = NULL;
     if(match(ADDSUB)) {
         node = makeNode(ADDSUB, getLexeme());
-        advance();
-        node -> right = unary_expr();
-        left = makeNode(INT, "0");
-        left -> val = 0;
-        node -> left = left;
-        //return left;
+        if(strcmp(node -> lexeme, "-") == 0) {
+            advance();
+            node -> right = unary_expr();
+            left = makeNode(INT, "0");
+            left -> val = 0;
+            node -> left = left;
+        } else { //e.g. + -x, no need to +0 
+            advance();
+            node = unary_expr();
+        }
         return node;
     } else {
         return factor();
@@ -641,7 +658,6 @@ void assembly(BTNode *root) {
                 break;
             case INCDEC: {
                 used_reg = find_used_reg(); //find reg of the variable
-                reg[empty_reg] = 1;
                 empty_reg = find_empty_reg();
                 reg[empty_reg] = 1;
                 printf("MOV r%d, 1\n", empty_reg);

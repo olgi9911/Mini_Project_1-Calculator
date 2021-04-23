@@ -1,6 +1,5 @@
 #ifndef __LEX__
 #define __LEX__
-
 #define MAXLEN 256
 
 // Token types
@@ -19,8 +18,6 @@ extern int match(TokenSet token);
 
 // Get the next token
 extern void advance(void);
-
-extern void retreat(char c);
 
 // Get the lexeme of the current token
 extern char *getLexeme(void);

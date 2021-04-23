@@ -24,7 +24,7 @@ int find_id_in_memory(char lex[256]) { //to find the memory location of a "ID"
 int find_empty_reg() {
     for(int i = 0; i <= 7; i++)
         if(reg[i] == 0) return i;
-    
+    error(RUNOUT);
     return 0;
 }
 
@@ -153,7 +153,6 @@ void assembly(BTNode *root) {
                 break;
             case INCDEC: {
                 used_reg = find_used_reg(); //find reg of the variable
-                reg[empty_reg] = 1;
                 empty_reg = find_empty_reg();
                 reg[empty_reg] = 1;
                 printf("MOV r%d, 1\n", empty_reg);

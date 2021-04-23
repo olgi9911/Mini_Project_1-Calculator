@@ -4,7 +4,8 @@
 #include "parser.h"
 #include "codeGen.h"
 
-int sbcount = 0;
+int sbcount = 0; // Counter for size of Symbol table
+int first_or_expr = 1;
 
 Symbol table[TBLSIZE], curr_table[TBLSIZE]; // store variables in the table before the "assign" operation
 
@@ -53,7 +54,7 @@ int setval(char *str, int val) {
     return val;
 }
 
-int find_new_var_right(BTNode *root) {
+int find_new_var(BTNode *root) {
     if(root != NULL) {
         if(root -> data == ID) {
             int found = 0;
@@ -63,12 +64,11 @@ int find_new_var_right(BTNode *root) {
                 }
             }
             if(!found){
-                //new_var_in_right = 1;
                 return 1;
             }
         }
-        if(find_new_var_right(root -> left)) return 1;
-        if(find_new_var_right(root -> right)) return 1;
+        if(find_new_var(root -> left)) return 1;
+        if(find_new_var(root -> right)) return 1;
     }
     return 0;
 }
@@ -78,8 +78,6 @@ BTNode *makeNode(TokenSet tok, const char *lexe) {
     strcpy(node->lexeme, lexe);
     node->data = tok;
     node->val = 0;
-    //node->left = NULL;
-    //node->right = NULL;
     return node;
 }
 
@@ -96,6 +94,7 @@ void statement(void) {
     for(int i = 0; i <= 7; i++) {
         reg[i] = 0;
     }
+    first_or_expr = 1;
     BTNode *retp = NULL;
     if (match(ENDFILE)) { //store x, y, z into r0, r1, r2 respectively after EOF
         for(int i = 0; i <= 2; i++){
@@ -106,10 +105,9 @@ void statement(void) {
     } else if (match(END)) { //input is empty
         advance();
     } else {
-        //retp = expr(); //parsing starts here
-        retp = assign_expr();
+        retp = assign_expr(); //parsing starts here
         if (match(END)) {
-            //printPrefix(retp); printf("\n");
+            printPrefix(retp); printf("\n");
             evaluateTree(retp);
             assembly(retp); //func. to print ASSEMBLY code
             freeTree(retp);
@@ -123,6 +121,9 @@ void statement(void) {
 // assign_expr := ID ASSIGN assign_expr | or_expr
 BTNode *assign_expr(void) {
     BTNode *retp = NULL, *node = NULL;
+    for(int i = 0; i < TBLSIZE; i++) {
+        strcpy(curr_table[i].name, table[i].name);
+    }
     node = or_expr();
     if(node -> data == ID) {
         if (match(ASSIGN)) {
@@ -131,17 +132,25 @@ BTNode *assign_expr(void) {
                     strcpy(curr_table[i].name, table[i].name);
                 }
                 advance();
+                first_or_expr = 0; //not the first returning or_expr, set to 0
                 retp -> right = assign_expr(); //recursion process
                 retp -> left = node;
-                //
-                if(find_new_var_right(retp -> right)) {
+                //Find new variable(s) in the right subtree
+                if(find_new_var(retp -> right)) {
                     error(UNDEFINED);
                 }
-                //
         } else {
+            //Deal with input such as "1 + a", a is undefined
+            if(first_or_expr && find_new_var(node)) {
+                error(UNDEFINED);
+            }
             retp = node;
         }
     } else {
+        //Deal with input such as "1 + a", a is undefined
+        if(first_or_expr && find_new_var(node)) {
+            error(UNDEFINED);
+        }
         retp = node;
     }
     return retp;
@@ -158,7 +167,7 @@ BTNode *or_expr_tail(BTNode *left) {
     if(match(OR)) {
         node = makeNode(OR, getLexeme());
         advance();
-        node -> left = left;
+        node -> left = left; //xor_expr
         node -> right = xor_expr();
         return or_expr_tail(node);
     } else {
@@ -248,11 +257,16 @@ BTNode *unary_expr(void) {
     BTNode *node = NULL, *left = NULL;
     if(match(ADDSUB)) {
         node = makeNode(ADDSUB, getLexeme());
-        advance();
-        node -> right = unary_expr();
-        left = makeNode(INT, "0");
-        left -> val = 0;
-        node -> left = left;
+        if(strcmp(node -> lexeme, "-") == 0) {
+            advance();
+            node -> right = unary_expr();
+            left = makeNode(INT, "0");
+            left -> val = 0;
+            node -> left = left;
+        } else { //e.g. + -x, no need to +0
+            advance();
+            node = unary_expr();
+        }
         return node;
     } else {
         return factor();
@@ -276,6 +290,7 @@ BTNode *factor(void) {
         advance();
         if(match(ID)) {
             retp -> left = makeNode(ID, getLexeme());
+            //ignore retp -> right
             advance();
         } else {
             error(SYNTAXERR);
