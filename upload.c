@@ -80,7 +80,7 @@ typedef struct _Node {
     struct _Node *left; 
     struct _Node *right;
 } BTNode;
-
+//parser.c
 void statement(void);
 BTNode *assign_expr(void);
 BTNode *or_expr(void);
@@ -100,9 +100,17 @@ BTNode *term_tail(BTNode *left);
 BTNode *expr(void);
 BTNode *expr_tail(BTNode *left);
 
+BTNode *makeNode(TokenSet tok, const char *lexe) {
+    BTNode *node = (BTNode*)calloc(1, sizeof(BTNode));
+    strcpy(node->lexeme, lexe);
+    node->data = tok;
+    node->val = 0;
+    return node;
+}
+//codeGen.c
 int evaluateTree(BTNode *root);
 void assembly(BTNode *root);
-
+//lex.c
 static TokenSet getToken(void);
 static TokenSet curToken = UNKNOWN;
 static char lexeme[MAXLEN]; //256
@@ -212,12 +220,29 @@ int match(TokenSet token) {
 char *getLexeme(void) {
     return lexeme;
 }
-
+//Some flags
 int reg[8] = {};
 int sbcount = 0;
+int node_count = 0;
 int first_or_expr = 1;
 Symbol table[TBLSIZE];
 Symbol curr_table[TBLSIZE]; // store variables in the table before the "assign" operation
+/*
+void printPrefix(BTNode *root) {
+    if (root != NULL) {
+        printf("%s ", root->lexeme);
+        printPrefix(root->left);
+        printPrefix(root->right);
+    }
+}
+*/
+void freeTree(BTNode *root) {
+    if (root != NULL) {
+        freeTree(root->left);
+        freeTree(root->right);
+        free(root);
+    }
+}
 
 void initTable(void) {
     strcpy(table[0].name, "x");
@@ -284,22 +309,6 @@ int find_new_var(BTNode *root) {
     return 0;
 }
 
-BTNode *makeNode(TokenSet tok, const char *lexe) {
-    BTNode *node = (BTNode*)calloc(1, sizeof(BTNode));
-    strcpy(node->lexeme, lexe);
-    node->data = tok;
-    node->val = 0;
-    return node;
-}
-
-void freeTree(BTNode *root) {
-    if (root != NULL) {
-        freeTree(root->left);
-        freeTree(root->right);
-        free(root);
-    }
-}
-
 int find_id_in_memory(char lex[256]) { //to find the memory location of a "ID"
     for(int i = 0; i < TBLSIZE; i++) {
         if(strcmp(lex, table[i].name) == 0)
@@ -312,6 +321,7 @@ int find_empty_reg() {
     for(int i = 0; i <= 7; i++)
         if(reg[i] == 0) return i;
 
+    error(RUNOUT);
     return 0;
 }
 
@@ -333,12 +343,23 @@ int find_var_in_right(BTNode *root) {
     return 0;
 }
 
+int find_num_of_node(BTNode *root) {
+    if(root != NULL) {
+        find_num_of_node(root -> left);
+        node_count ++;
+        find_num_of_node(root -> right);
+        return node_count;
+    }
+    return 0;
+}
+
 // statement := ENDFILE | END | assign_expr END
 void statement(void) {
     for(int i = 0; i <= 7; i++) {
         reg[i] = 0;
     }
     first_or_expr = 1;
+    node_count = 0;
     BTNode *retp = NULL;
     if (match(ENDFILE)) { //store x, y, z into r0, r1, r2 respectively after EOF
         for(int i = 0; i <= 2; i++){
@@ -507,7 +528,7 @@ BTNode *unary_expr(void) {
             left = makeNode(INT, "0");
             left -> val = 0;
             node -> left = left;
-        } else { //e.g. + -x, no need to +0 
+        } else { //e.g. + -x, no need to +0
             advance();
             node = unary_expr();
         }
@@ -619,10 +640,21 @@ int evaluateTree(BTNode *root) {
 }
 
 void assembly(BTNode *root) {
-    int used_reg = 0, next_used_reg = 0, empty_reg = 0;
+    int used_reg = 0, next_used_reg = 0, empty_reg = 0, left_count = 0, right_count = 0;
     if(root != NULL) {
         if(root -> data == ASSIGN) {
             assembly(root -> right); //right recursion
+        }else if(strcmp(root -> lexeme, "-") != 0 && strcmp(root -> lexeme, "/") != 0) {
+            left_count = find_num_of_node(root -> left);
+            node_count = 0;
+            right_count = find_num_of_node(root -> right);
+            if(right_count > left_count) {
+                assembly(root -> right);
+                assembly(root -> left);
+            } else{
+                assembly(root -> left);
+                assembly(root -> right);
+            }
         }else {
             assembly(root -> left);
             assembly(root -> right);
