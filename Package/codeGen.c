@@ -4,6 +4,7 @@
 #include "codeGen.h"
 
 int reg[8] = {};
+int node_count = 0;
 
 void printPrefix(BTNode *root) {
     if (root != NULL) {
@@ -42,6 +43,16 @@ int find_var_in_right(BTNode *root) {
         }
         if(find_var_in_right(root -> left)) return 1;
         if(find_var_in_right(root -> right)) return 1;
+    }
+    return 0;
+}
+
+int find_num_of_node(BTNode *root) {
+    if(root != NULL) {
+        find_num_of_node(root -> left);
+        node_count ++;
+        find_num_of_node(root -> right);
+        return node_count;
     }
     return 0;
 }
@@ -114,10 +125,21 @@ int evaluateTree(BTNode *root) {
 }
 
 void assembly(BTNode *root) {
-    int used_reg = 0, next_used_reg = 0, empty_reg = 0;
+    int used_reg = 0, next_used_reg = 0, empty_reg = 0, left_count = 0, right_count = 0;
     if(root != NULL) {
         if(root -> data == ASSIGN) {
             assembly(root -> right); //right recursion
+        }else if(strcmp(root -> lexeme, "-") != 0 && strcmp(root -> lexeme, "/") != 0) {
+            left_count = find_num_of_node(root -> left);
+            node_count = 0;
+            right_count = find_num_of_node(root -> right);
+            if(right_count > left_count) {
+                assembly(root -> right);
+                assembly(root -> left);
+            } else{
+                assembly(root -> left);
+                assembly(root -> right);
+            }
         }else {
             assembly(root -> left);
             assembly(root -> right);

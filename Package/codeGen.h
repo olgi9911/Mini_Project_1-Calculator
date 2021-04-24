@@ -4,6 +4,7 @@
 #include "parser.h"
 //e.g. reg[0] == 1 -> occupied, == 0 -> empty
 extern int reg[8];
+
 // Evaluate the syntax tree
 extern int evaluateTree(BTNode *root);
 
